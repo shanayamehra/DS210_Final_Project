@@ -23,20 +23,21 @@ finalproject/
 ├── Cargo.lock
 ├── Cargo.toml
 ├── README.md
+├── written_report.pdf        # complete write‑up in PDF form
+├── output/
+│   └── output.png            # sample CLI screenshot
 ├── src/
-│   ├── data.rs
-│   ├── lib.rs
-│   ├── main.rs
-│   ├── recommend.rs
-│   └── dataset/
-│       ├── data_cleaning.ipynb
-│       ├── cleaned_indianapolis_restaurants.json
-│       ├── cleaned_indianapolis_reviews.json
-│       └── cleaned_indianapolis_users.json
+│   ├── dataset/
+│   │   ├── cleaned_indianapolis_restaurants.json
+│   │   ├── cleaned_indianapolis_reviews.json
+│   │   └── cleaned_indianapolis_users.json
+│   ├── data_cleaning.ipynb   # Jupyter notebook for Python cleaning
+│   ├── data.rs               # JSONL loaders & record structs
+│   ├── lib.rs                # module re‑exports
+│   ├── main.rs               # CLI parsing & result printing
+│   └── recommend.rs          # collaborative‑filtering algorithm
 ├── tests/
-│   └── mod.rs
-└── output/
-    └── output.png
+│   └── mod.rs                # unit tests for recommend_for()
 ```
 
 ## Usage
