@@ -37,7 +37,6 @@ finalproject/
 
 
 ## Usage  
-```bash
 # 1. Clone & build
 git clone <your-repo-URL>
 cd finalproject
@@ -54,7 +53,6 @@ cargo run -- \
   --user-id     SOME_USER_ID
 
 ## Testing 
-```bash
 cargo test
 
 Expected Output:
