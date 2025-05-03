@@ -17,46 +17,49 @@ This project answers the question: *How can we recommend Indianapolis restaurant
    - `main.rs`: uses Clap with defaults pointing at our cleaned sample files and optional `--user-id`; orchestrates loading, recommendation, and formatted printing of top-N results.
 
 ## Project Structure  
+```bash
 finalproject/
 ├── Cargo.toml
 ├── README.md
 ├── src/
-│ ├── data.rs # JSONL loaders & record types
-│ ├── recommend.rs # CF algorithm & stable tie-break sorting
-│ ├── main.rs # CLI parsing & result printing
-│ └── lib.rs # Module re-exports
-├── src/dataset/ # Cleaned JSONL subsets for demo
-│ ├── cleaned_indianapolis_restaurants.json
-│ ├── cleaned_indianapolis_reviews.json
-│ └── cleaned_indianapolis_users.json
+│   ├── data.rs            # JSONL loaders & record types
+│   ├── recommend.rs       # CF algorithm + stable tiebreak sorting
+│   ├── lib.rs             # Module re-exports
+│   ├── main.rs            # CLI parsing & result printing
+│   └── dataset/
+│       ├── cleaned_indianapolis_restaurants.json
+│       ├── cleaned_indianapolis_reviews.json
+│       └── cleaned_indianapolis_users.json
 ├── tests/
-│ └── mod.rs # Unit tests for recommend_for()
+│   └── mod.rs             # Unit tests for recommend_for()
 └── output/
-└── output.png # Sample program output screenshot
+    └── output.png         # Sample program output screenshot
+
 
 ## Usage  
 ```bash
-# Clone and build
+# 1. Clone & build
 git clone <your-repo-URL>
 cd finalproject
 cargo build --release
 
-# Demo (no arguments)
+# 2. Run with defaults (uses src/dataset/… files)
 cargo run
 
-# Custom run with your own files or user:
+# 3. Or specify your own files and user:
 cargo run -- \
   --restaurants path/to/restaurants.json \
   --reviews     path/to/reviews.json \
   --users       path/to/users.json \
   --user-id     SOME_USER_ID
 
-## Testing  
+## Testing 
 ```bash
 cargo test
+
 Expected Output:
 running 2 tests
 test no_recommend_when_no_similar_users ... ok
 test recommend_simple_case               ... ok
 
-test result: ok. 2 passed; 0 failed
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
