@@ -17,7 +17,7 @@ This project answers the question: *How can we recommend Indianapolis restaurant
    - `main.rs`: uses Clap with defaults pointing at our cleaned sample files and optional `--user-id`; orchestrates loading, recommendation, and formatted printing of top-N results.
 
 ## Project Structure  
-```bash
+```text
 finalproject/
 ├── Cargo.toml
 ├── README.md
@@ -36,28 +36,11 @@ finalproject/
     └── output.png         # Sample program output screenshot
 
 
-## Usage  
-# 1. Clone & build
-git clone <your-repo-URL>
-cd finalproject
-cargo build --release
+## Usage
 
-# 2. Run with defaults (uses src/dataset/… files)
-cargo run
+After cloning and building, you can simply run `cargo run` to invoke the recommender over the included Indianapolis datasets.  
+If you’d like to point at your own JSONL files (or a different user), pass the `--restaurants`, `--reviews`, `--users`, and `--user-id` flags to customize the input.
 
-# 3. Or specify your own files and user:
-cargo run -- \
-  --restaurants path/to/restaurants.json \
-  --reviews     path/to/reviews.json \
-  --users       path/to/users.json \
-  --user-id     SOME_USER_ID
+## Testing
 
-## Testing 
-cargo test
-
-Expected Output:
-running 2 tests
-test no_recommend_when_no_similar_users ... ok
-test recommend_simple_case               ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+A small suite of unit tests verifies that `recommend_for()` behaves correctly in edge cases (no similar users) and in a simple two-user scenario. Run them via `cargo test`—you should see both tests pass successfully before you ship.
