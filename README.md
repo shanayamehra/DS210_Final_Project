@@ -2,7 +2,7 @@
 A Rust-based collaborative-filtering system that suggests top Indianapolis restaurants to a user based on Yelp review data.
 
 ## Introduction, Dataset Selection & Motivation  
-This project answers the question: *How can we recommend Indianapolis restaurants to a user by leveraging both their own past ratings and those of similar reviewers?* To explore this, we extracted a manageable subset of the Yelp Academic Dataset—approximately 1,200 restaurants in Indianapolis (filtered by city and “restaurant” category), 25,000 corresponding reviews, and the 5,000 users who wrote them. Cleaning in Python yields minimal JSONL files containing only `business_id`, `name`, `user_id`, and `stars`, striking a balance between real-world scale and GitHub-friendly size while enabling nontrivial graph computations.
+This project answers the question: *How can we recommend Indianapolis restaurants to a user by leveraging both their own past ratings and those of similar reviewers?* To explore this, I extracted a manageable subset of the Yelp Academic Dataset- approximately 1200 restaurants in Indianapolis (filtered by city and “restaurant” category), 25000 corresponding reviews, and the 5000 users who wrote them. Cleaning in Python yields minimal JSONL files containing only `business_id`, `name`, `user_id`, and `stars`, striking a balance between real-world scale and GitHub-friendly size while enabling nontrivial graph computations.
 
 ## Methodology  
 1. **Data Cleaning (Python)**  
