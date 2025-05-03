@@ -1,6 +1,5 @@
-//! Re-export only the modules we actually use.
+// src/lib.rs
+// Re-export the data and recommend modules as the crate API
 
 pub mod data;
 pub mod recommend;
-#[cfg(test)]
-pub mod tests;

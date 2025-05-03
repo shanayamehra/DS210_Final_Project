@@ -1,93 +1,74 @@
 // src/recommend.rs
-
-use crate::data::Review;
+use crate::data::{Restaurant, Review, User};
 use std::collections::{HashMap, HashSet};
 
-/// A single recommendation result.
 #[derive(Debug)]
 pub struct Recommendation {
-    pub business_id: String,
-    pub score:       f32,
+    pub restaurant: Restaurant,
+    pub score: f32,
 }
 
-/// Build a map: user_id → set of business_ids they’ve reviewed.
-fn build_user_map(reviews: &[Review]) -> HashMap<&str, HashSet<&str>> {
-    let mut map = HashMap::new();
-    for r in reviews {
-        map.entry(r.user_id.as_str())
-            .or_insert_with(HashSet::new)
-            .insert(r.business_id.as_str());
-    }
-    map
+/// Compute Jaccard similarity between two sets
+fn jaccard(a: &HashSet<String>, b: &HashSet<String>) -> f32 {
+    let inter = a.intersection(b).count() as f32;
+    let uni   = a.union(b).count() as f32;
+    if uni == 0.0 { 0.0 } else { inter / uni }
 }
 
-/// Compute Jaccard similarity between two users’ review‐sets.
-fn jaccard(
-    map: &HashMap<&str, HashSet<&str>>,
-    u1: &str,
-    u2: &str,
-) -> f32 {
-    let s1 = &map[u1];
-    let s2 = &map[u2];
-    let inter = s1.intersection(s2).count() as f32;
-    let uni   = s1.union(s2).count() as f32;
-    if uni > 0.0 { inter / uni } else { 0.0 }
-}
-
-/// Recommend top‐N businesses for `user_id` using weighted CF.
+/// Recommend top-n restaurants for a given user
 pub fn recommend_for(
     user_id: &str,
+    restaurants: &[Restaurant],
     reviews: &[Review],
+    _users: &[User],   // currently unused, but could fetch names etc.
     top_n: usize,
 ) -> Vec<Recommendation> {
-    // 1) Build user→business sets
-    let user_map = build_user_map(reviews);
-    let target_set = user_map
-        .get(user_id)
-        .cloned()
-        .unwrap_or_default();
-
-    // 2) Build rating lookup
-    let mut rating_map = HashMap::new();
+    // 1) build map: user_id → set of business_ids they reviewed
+    let mut user_reviews: HashMap<String, HashSet<String>> = HashMap::new();
     for r in reviews {
-        rating_map.insert(
-            (r.user_id.as_str(), r.business_id.as_str()),
-            r.stars,
-        );
+        user_reviews
+            .entry(r.user_id.clone())
+            .or_default()
+            .insert(r.business_id.clone());
     }
 
-    // 3) Accumulate weighted scores
-    let mut sum:     HashMap<&str, f32> = HashMap::new();
-    let mut weights: HashMap<&str, f32> = HashMap::new();
+    // 2) get target user's set
+    let target = user_reviews.get(user_id).cloned().unwrap_or_default();
 
-    for (&other, bizs) in &user_map {
-        if other == user_id { continue; }
-        let sim = jaccard(&user_map, user_id, other);
-        if sim <= 0.0 { continue; }
-        for &biz in bizs {
-            if target_set.contains(biz) { continue; }
-            let rating = *rating_map.get(&(other, biz)).unwrap_or(&0.0);
-            *sum.entry(biz).or_default()     += sim * rating;
-            *weights.entry(biz).or_default() += sim;
+    // 3) compute similarity to all other users
+    let mut sims: Vec<(String, f32)> = user_reviews
+        .iter()
+        .filter(|(uid, _)| uid.as_str() != user_id)
+        .map(|(uid, set)| (uid.clone(), jaccard(&target, set)))
+        .filter(|(_, score)| *score > 0.0)
+        .collect();
+    sims.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // take top 5 similar users
+    let top_users: Vec<_> = sims.iter().take(5).collect();
+
+    // 4) score each restaurant by weighted sum of (similarity × rating)
+    let mut rest_score: HashMap<String, f32> = HashMap::new();
+    for (other, sim) in top_users {
+        for r in reviews.iter().filter(|r| &r.user_id == other) {
+            *rest_score.entry(r.business_id.clone()).or_default() += sim * r.stars;
         }
     }
 
-    // 4) Normalize and sort
-    let mut recs: Vec<Recommendation> = sum.into_iter()
-        .filter_map(|(biz, total)| {
-            let w = weights.get(biz)?;
-            if *w > 0.0 {
-                Some(Recommendation {
-                    business_id: biz.to_string(),
-                    score:        total / *w,
+    // 5) assemble Recommendation structs
+    let mut recs: Vec<Recommendation> = rest_score.into_iter()
+        .filter_map(|(bid, score)| {
+            restaurants
+                .iter()
+                .find(|rest| rest.business_id == bid)
+                .map(|rest| Recommendation {
+                    restaurant: rest.clone(),
+                    score,
                 })
-            } else {
-                None
-            }
         })
         .collect();
 
+    // 6) sort & take top N
     recs.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-    recs.truncate(top_n);
-    recs
+    recs.into_iter().take(top_n).collect()
 }

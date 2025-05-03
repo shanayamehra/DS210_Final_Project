@@ -1,36 +1,43 @@
 // src/tests/mod.rs
+use finalproject::recommend::{recommend_for, Recommendation};
+use finalproject::data::{Restaurant, Review, User};
 
-use crate::data::Review;
-use crate::recommend::recommend_for;
+#[test]
+fn no_recommend_when_no_similar_users() {
+    let restaurants = vec![
+        Restaurant { business_id: "b1".into(), name: "A".into(), city: "".into(), state: "".into(), stars: 0.0, review_count: 0 },
+    ];
+    let reviews = vec![
+        Review { user_id: "u1".into(), business_id: "b1".into(), stars: 5.0 },
+    ];
+    let users = vec![
+        User { user_id: "u1".into(), name: None, review_count: 1, average_stars: 5.0 },
+    ];
 
-/// Tiny review set for unit tests:
-/// A→X(4), B→X(5), B→Y(3), C→Y(4)
-fn sample_reviews() -> Vec<Review> {
-    vec![
-        Review { user_id: "A".into(), business_id: "X".into(), stars: 4.0 },
-        Review { user_id: "B".into(), business_id: "X".into(), stars: 5.0 },
-        Review { user_id: "B".into(), business_id: "Y".into(), stars: 3.0 },
-        Review { user_id: "C".into(), business_id: "Y".into(), stars: 4.0 },
-    ]
+    let recs: Vec<Recommendation> = recommend_for("u1", &restaurants, &reviews, &users, 5);
+    assert!(recs.is_empty());
 }
 
 #[test]
 fn recommend_simple_case() {
-    let revs = sample_reviews();
-    let recs = recommend_for("A", &revs, 2);
-
-    // Jaccard(A, B) = 1/2 = 0.5, Jaccard(A, C) = 0
-    // Only B contributes to Y: sum = 0.5*3.0 = 1.5, weight = 0.5, score = 1.5/0.5 = 3.0
-    assert_eq!(recs.len(), 1);
-    assert_eq!(recs[0].business_id, "Y");
-    assert!((recs[0].score - 3.0).abs() < 1e-6);
-}
-
-#[test]
-fn no_recommend_when_no_similar_users() {
-    let revs = vec![
-        Review { user_id: "A".into(), business_id: "X".into(), stars: 5.0 },
+    let restaurants = vec![
+        Restaurant { business_id: "b1".into(), name: "X".into(), city: "".into(), state: "".into(), stars: 0.0, review_count: 0 },
+        Restaurant { business_id: "b2".into(), name: "Y".into(), city: "".into(), state: "".into(), stars: 0.0, review_count: 0 },
     ];
-    let recs = recommend_for("A", &revs, 5);
-    assert!(recs.is_empty());
+    let reviews = vec![
+        // u1 rated b1, u2 rated b1 & b2
+        Review { user_id: "u1".into(), business_id: "b1".into(), stars: 5.0 },
+        Review { user_id: "u2".into(), business_id: "b1".into(), stars: 5.0 },
+        Review { user_id: "u2".into(), business_id: "b2".into(), stars: 3.0 },
+    ];
+    let users = vec![
+        User { user_id: "u1".into(), name: None, review_count: 1, average_stars: 5.0 },
+        User { user_id: "u2".into(), name: None, review_count: 2, average_stars: 4.0 },
+    ];
+
+    let recs = recommend_for("u1", &restaurants, &reviews, &users, 1);
+    assert_eq!(recs.len(), 1);
+    // Jaccard(u1,u2) = 1/2, weighted score = (1/2)*3 = 1.5
+    assert!((recs[0].score - 1.5).abs() < 1e-6);
+    assert_eq!(recs[0].restaurant.business_id, "b2");
 }
