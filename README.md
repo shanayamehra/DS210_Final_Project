@@ -37,8 +37,8 @@ finalproject/
 │   └── mod.rs
 └── output/
     └── output.png
+```
 
----
 ## Usage
 
 After cloning and building, you can simply run `cargo run` to invoke the recommender over the included Indianapolis datasets.  
@@ -47,3 +47,7 @@ If you’d like to point at your own JSONL files (or a different user), pass the
 ## Testing
 
 A small suite of unit tests verifies that `recommend_for()` behaves correctly in edge cases (no similar users) and in a simple two-user scenario. Run them via `cargo test`—you should see both tests pass successfully before you ship.
+
+## Conclusion
+
+This project showcases a streamlined pipeline combining Python data cleaning and Rust’s performance and type safety to deliver personalized restaurant recommendations. Modular code and unit tests ensure maintainability and correctness. The deterministic collaborative-filtering algorithm provides reproducible top-5 suggestions with a single cargo run, demonstrating the practical value of simple graph-based methods.
