@@ -1,55 +1,92 @@
 // src/main.rs
+
+use anyhow::Result;
 use clap::Parser;
+use std::path::PathBuf;
+
 use finalproject::data::{load_restaurants, load_reviews, load_users};
 use finalproject::recommend::recommend_for;
 
+/// Recommend Indianapolis restaurants for a user.
 #[derive(Parser)]
-#[command(name = "finalproject")]
-struct Args {
-    /// Path to restaurants JSON-lines
-    #[arg(long)]
-    restaurants: String,
+#[command(
+    author,
+    version,
+    about = "Recommend restaurants using collaborative filtering"
+)]
+struct Cli {
+    /// Path to cleaned restaurants JSONL
+    #[arg(
+        long,
+        default_value = "src/dataset/cleaned_indianapolis_restaurants.json",
+        value_name = "FILE"
+    )]
+    restaurants: PathBuf,
 
-    /// Path to reviews JSON-lines
-    #[arg(long)]
-    reviews: String,
+    /// Path to cleaned reviews JSONL
+    #[arg(
+        long,
+        default_value = "src/dataset/cleaned_indianapolis_reviews.json",
+        value_name = "FILE"
+    )]
+    reviews: PathBuf,
 
-    /// Path to users JSON-lines
-    #[arg(long)]
-    users: String,
+    /// Path to cleaned users JSONL
+    #[arg(
+        long,
+        default_value = "src/dataset/cleaned_indianapolis_users.json",
+        value_name = "FILE"
+    )]
+    users: PathBuf,
 
-    /// User ID to recommend for
+    /// The user_id to recommend for; if omitted, uses the first reviewer in the reviews file
     #[arg(long)]
-    user_id: String,
-
-    /// Number of top recommendations
-    #[arg(long, default_value_t = 5)]
-    top_n: usize,
+    user_id: Option<String>,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> Result<()> {
+    let args = Cli::parse();
 
-    let restaurants = load_restaurants(&args.restaurants);
-    let reviews     = load_reviews(&args.reviews);
-    let users       = load_users(&args.users);
+    // 1) Load datasets
+    let restaurants = load_restaurants(&args.restaurants)?;
+    let reviews     = load_reviews(&args.reviews)?;
+    let users       = load_users(&args.users)?;
 
-    let recs = recommend_for(
-        &args.user_id,
-        &restaurants,
-        &reviews,
-        &users,
-        args.top_n,
+    // 2) Decide which user to target
+    let target_id = match args.user_id.clone() {
+        Some(id) => id,
+        None => reviews
+            .first()
+            .map(|r| r.user_id.clone())
+            .expect("No user_id provided and reviews file is empty"),
+    };
+
+    // 3) Retrieve a human-friendly name if available
+    let user_name = users
+        .iter()
+        .find(|u| u.user_id == target_id)
+        .and_then(|u| u.name.clone())
+        .unwrap_or_else(|| "<unknown>".to_string());
+
+    // 4) Compute top-5 recommendations
+    let recs = recommend_for(&target_id, &restaurants, &reviews, &users);
+
+    // 5) Print
+    println!(
+        "Top {} recommendations for {} (user ID: {}):",
+        recs.len(),
+        user_name,
+        target_id
     );
-
-    println!("Top {} recommendations for {}:", args.top_n, args.user_id);
-    for (i, r) in recs.iter().enumerate() {
+    for (i, rec) in recs.iter().enumerate() {
         println!(
-            "{}. {} ({}) — score = {:.3}",
+            "{}. {} (business ID: {}) — score = {:.3}",
             i + 1,
-            r.restaurant.name,
-            r.restaurant.business_id,
-            r.score
+            rec.restaurant.name,
+            rec.business_id,
+            rec.score
         );
     }
+
+    Ok(())
 }

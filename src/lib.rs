@@ -1,5 +1,4 @@
 // src/lib.rs
-// Re-export the data and recommend modules as the crate API
-
+// Re-export our two main modules
 pub mod data;
 pub mod recommend;

@@ -1,74 +1,89 @@
-// src/recommend.rs
 use crate::data::{Restaurant, Review, User};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Recommendation {
-    pub restaurant: Restaurant,
-    pub score: f32,
+    pub restaurant:  Restaurant,
+    pub business_id: String,
+    pub score:       f32,
 }
 
-/// Compute Jaccard similarity between two sets
-fn jaccard(a: &HashSet<String>, b: &HashSet<String>) -> f32 {
-    let inter = a.intersection(b).count() as f32;
-    let uni   = a.union(b).count() as f32;
-    if uni == 0.0 { 0.0 } else { inter / uni }
-}
-
-/// Recommend top-n restaurants for a given user
+/// Collaborative-filtering based on dot-product of co-ratings.
 pub fn recommend_for(
     user_id: &str,
     restaurants: &[Restaurant],
-    reviews: &[Review],
-    _users: &[User],   // currently unused, but could fetch names etc.
-    top_n: usize,
+    reviews:     &[Review],
+    _users:      &[User],       // unused but kept for signature
 ) -> Vec<Recommendation> {
-    // 1) build map: user_id → set of business_ids they reviewed
-    let mut user_reviews: HashMap<String, HashSet<String>> = HashMap::new();
+    // 1) Aggregate each user's ratings
+    let mut user_ratings: HashMap<&str, Vec<(&str, f32)>> = HashMap::new();
     for r in reviews {
-        user_reviews
-            .entry(r.user_id.clone())
+        user_ratings
+            .entry(&r.user_id)
             .or_default()
-            .insert(r.business_id.clone());
+            .push((&r.business_id, r.stars));
     }
 
-    // 2) get target user's set
-    let target = user_reviews.get(user_id).cloned().unwrap_or_default();
+    // 2) Target user's ratings
+    let empty: Vec<(&str, f32)> = Vec::new();
+    let target_ratings = user_ratings.get(user_id).unwrap_or(&empty);
 
-    // 3) compute similarity to all other users
-    let mut sims: Vec<(String, f32)> = user_reviews
+    // 3) Build a lookup for Restaurant clones
+    let rest_map: HashMap<String, Restaurant> = restaurants
         .iter()
-        .filter(|(uid, _)| uid.as_str() != user_id)
-        .map(|(uid, set)| (uid.clone(), jaccard(&target, set)))
-        .filter(|(_, score)| *score > 0.0)
+        .cloned()
+        .map(|r| (r.business_id.clone(), r))
         .collect();
-    sims.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    // take top 5 similar users
-    let top_users: Vec<_> = sims.iter().take(5).collect();
-
-    // 4) score each restaurant by weighted sum of (similarity × rating)
-    let mut rest_score: HashMap<String, f32> = HashMap::new();
-    for (other, sim) in top_users {
-        for r in reviews.iter().filter(|r| &r.user_id == other) {
-            *rest_score.entry(r.business_id.clone()).or_default() += sim * r.stars;
+    // 4) Compute similarity = dot-product over co-rated items
+    let mut sim_scores: HashMap<&str, f32> = HashMap::new();
+    for (&other, their_ratings) in &user_ratings {
+        if other == user_id { continue; }
+        let mut dot = 0.0;
+        for &(biz_t, stars_t) in target_ratings {
+            for &(biz_o, stars_o) in their_ratings {
+                if biz_t == biz_o {
+                    dot += stars_t * stars_o;
+                }
+            }
+        }
+        if dot > 0.0 {
+            sim_scores.insert(other, dot);
         }
     }
 
-    // 5) assemble Recommendation structs
-    let mut recs: Vec<Recommendation> = rest_score.into_iter()
-        .filter_map(|(bid, score)| {
-            restaurants
-                .iter()
-                .find(|rest| rest.business_id == bid)
-                .map(|rest| Recommendation {
-                    restaurant: rest.clone(),
+    // 5) For each unseen business, accumulate weighted sums
+    let mut totals:  HashMap<&str, f32> = HashMap::new();
+    let mut weights: HashMap<&str, f32> = HashMap::new();
+
+    for (&other, &sim) in &sim_scores {
+        if let Some(rts) = user_ratings.get(other) {
+            for &(biz, stars) in rts {
+                if target_ratings.iter().any(|&(tb, _)| tb == biz) {
+                    continue;
+                }
+                *totals.entry(biz).or_default()  += sim * stars;
+                *weights.entry(biz).or_default() += sim;
+            }
+        }
+    }
+
+    // 6) Build Recommendations only when we have a Restaurant
+    let mut recs: Vec<Recommendation> = totals
+        .into_iter()
+        .filter_map(|(biz, sum)| {
+            weights.get(biz).and_then(|&w| {
+                let score = sum / w;
+                rest_map.get(biz).map(|rest| Recommendation {
+                    restaurant:  rest.clone(),
+                    business_id: biz.to_string(),
                     score,
                 })
+            })
         })
         .collect();
 
-    // 6) sort & take top N
+    // 7) Sort & take top 5
     recs.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-    recs.into_iter().take(top_n).collect()
+    recs.into_iter().take(5).collect()
 }

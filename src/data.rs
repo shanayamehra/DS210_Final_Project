@@ -1,53 +1,51 @@
-// src/data.rs
 use serde::Deserialize;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader},
+    path::Path,
+};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Restaurant {
     pub business_id: String,
-    pub name: String,
-    pub city: String,
-    pub state: String,
-    pub stars: f32,
-    pub review_count: usize,
+    pub name:        String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Review {
-    pub user_id: String,
+    pub user_id:     String,
     pub business_id: String,
-    pub stars: f32,
+    pub stars:       f32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct User {
     pub user_id: String,
-    pub name: Option<String>,
-    pub review_count: usize,
-    pub average_stars: f32,
+    pub name:    Option<String>,
 }
 
-/// Generic loader for any JSON-lines file
-pub fn load_jsonl<T: for<'de> Deserialize<'de>>(path: &str) -> Vec<T> {
-    let file = File::open(path).expect("Unable to open file");
-    let reader = BufReader::new(file);
-    reader
-        .lines()
-        .filter_map(|l| l.ok())
-        .filter_map(|json| serde_json::from_str(&json).ok())
-        .collect()
+/// Load a newline-delimited JSONL file of T.
+fn load_jsonl<T: for<'de> Deserialize<'de>, P: AsRef<Path>>(path: P) -> io::Result<Vec<T>> {
+    let f = File::open(path.as_ref())?;
+    let rd = BufReader::new(f);
+    let mut v = Vec::new();
+    for line_res in rd.lines() {
+        let line = line_res?;
+        let item: T = serde_json::from_str(&line)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        v.push(item);
+    }
+    Ok(v)
 }
 
-/// Specialized loaders
-pub fn load_restaurants(path: &str) -> Vec<Restaurant> {
+pub fn load_restaurants<P: AsRef<Path>>(path: P) -> io::Result<Vec<Restaurant>> {
     load_jsonl(path)
 }
 
-pub fn load_reviews(path: &str) -> Vec<Review> {
+pub fn load_reviews<P: AsRef<Path>>(path: P) -> io::Result<Vec<Review>> {
     load_jsonl(path)
 }
 
-pub fn load_users(path: &str) -> Vec<User> {
+pub fn load_users<P: AsRef<Path>>(path: P) -> io::Result<Vec<User>> {
     load_jsonl(path)
 }
